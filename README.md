@@ -11,23 +11,23 @@
 
 ## 📖 Sumário
 
-*   [🎯 Sobre o Projeto](#-sobre-o-projeto)
-    *   [🏢 A Empresa Parceira: Pinpoint Tecnologia](#-a-empresa-parceira-pinpoint-tecnologia)
-    *   [❌ O Desafio](#-o-desafio)
-    *   [✅ Nossa Solução](#-nossa-solu%C3%A7%C3%A3o)
-*   [✨ Funcionalidades Chave](#-funcionalidades-chave)
-*   [👁️‍🗨️ Demonstração Visual (Preview)](#%EF%B8%8F-demonstra%C3%A7%C3%A3o-visual-preview)
-*   [💬 Fluxo de Conversação](#-fluxo-de-conversa%C3%A7%C3%A3o)
-*   [🛠️ Tecnologias Utilizadas](#%EF%B8%8F-tecnologias-utilizadas)
-*   [🚀 Começando](#-come%C3%A7ando)
-    *   [📋 Pré-requisitos](#-pr%C3%A9-requisitos)
-    *   [⚙️ Instalação e Execução](#%EF%B8%8F-instala%C3%A7%C3%A3o-e-execu%C3%A7%C3%A3o)
-*   [🗺️ Roadmap do Projeto](#%EF%B8%8F-roadmap-do-projeto)
-*   [🤝 Como Contribuir](#-como-contribuir)
-*   [👥 Equipe](#-equipe)
-*   [👨‍🏫 Orientação](#-orienta%C3%A7%C3%A3o)
-*   [📜 Licença](#-licen%C3%A7a)
-*   [🙏 Agradecimentos](#-agradecimentos)
+*   [🎯 Sobre o Projeto](#sobre-o-projeto)
+    *   [🏢 A Empresa Parceira: Pinpoint Tecnologia](#a-empresa-parceira-pinpoint-tecnologia)
+    *   [❌ O Desafio](#o-desafio)
+    *   [✅ Nossa Solução](#nossa-solu%C3%A7%C3%A3o)
+*   [✨ Funcionalidades Chave](#funcionalidades-chave)
+*   [👁️‍🗨️ Demonstração Visual (Preview)](#demonstra%C3%A7%C3%A3o-visual-preview)
+*   [💬 Fluxo de Conversação](#fluxo-de-conversa%C3%A7%C3%A3o)
+*   [🛠️ Tecnologias Utilizadas](#tecnologias-utilizadas)
+*   [🚀 Começando](#come%C3%A7ando)
+    *   [📋 Pré-requisitos](#pr%C3%A9-requisitos)
+    *   [⚙️ Instalação e Execução](#instala%C3%A7%C3%A3o-e-execu%C3%A7%C3%A3o)
+*   [🗺️ Roadmap do Projeto](#roadmap-do-projeto)
+*   [🤝 Como Contribuir](#como-contribuir)
+*   [👥 Equipe](#equipe)
+*   [👨‍🏫 Orientação](#orienta%C3%A7%C3%A3o)
+*   [📜 Licença](#licen%C3%A7a)
+*   [🙏 Agradecimentos](#agradecimentos)
 
 ---
 
@@ -76,9 +76,6 @@ Propomos um **chatbot inteligente** que atuará como o primeiro ponto de contato
 ## 👁️‍🗨️ Demonstração Visual (Preview)
 
 *(Aqui seria o local ideal para inserir um GIF animado mostrando a interação com o chatbot ou screenshots da interface.)*
-
-**Exemplo de como poderia ser a interação:**
-
 
 ---
 
