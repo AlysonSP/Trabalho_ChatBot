@@ -1,0 +1,2175 @@
+pip install Flask Flask-Session
+# Importe seu app (certifique-se que app.py está no mesmo diretório do notebook)
+from app import app # Isso vai executar o código global em app.py
+
+# Inicie o servidor Flask
+# Use use_reloader=False para evitar problemas com o reloader dentro do Jupyter
+if __name__ == '__main__': # Este if __name__ é para a célula do notebook
+    try:
+        print("Starting Flask app from notebook cell...")
+        app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)
+        print("Flask app should be running.")
+    except Exception as e:
+        print(f"Error running Flask app: {e}")
+///////////////////
+from flask import Flask, render_template, request, jsonify, session
+from flask_session import Session # Lembre-se: pip install Flask-Session
+
+app = Flask(__name__)
+app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_TYPE"] = "filesystem" # Cria uma pasta flask_session
+Session(app)
+
+# --- Lógica do Chatbot Adaptada ---
+
+def menu_opcao_display():
+    messages = [
+        "Seja bem-vindo, eu sou o Pinbot, como posso te ajudar?",
+        "1 - Abertura de chamados",
+        "2 - Falar com o setor Comercial",
+        "3 - Falar com um atendente",
+        "0 - Sair"
+    ]
+    session['current_handler'] = 'tratar_opcao_handler'
+    session['context'] = {} # Limpa contexto para o menu principal
+    return messages
+
+def tratar_opcao_handler(user_input):
+    if user_input == "1":
+        return abertura_chamado_menu_display()
+    elif user_input == "2":
+        return comercial_menu_display()
+    elif user_input == "3":
+        return atendente_menu_display()
+    elif user_input == "0":
+        session.clear()
+        return ["Encerrando atendimento. Até logo."]
+    else:
+        messages = menu_opcao_display() # Mostra o menu novamente
+        messages.insert(0, "Opção inválida, verifique novamente as opções do nosso menu e tente novamente.")
+        return messages
+
+# --- Funções de Abertura de Chamado ---
+def abertura_chamado_menu_display():
+    messages = [
+        "Claro! Vamos realizar a abertura do seu chamado. Em qual das opções se encaixa sua requisição:",
+        "1- Problema em um Circuito",
+        "2- Liberação de Prefixo",
+        "3- Manutenção Agendada",
+        "0- Voltar"
+    ]
+    session['current_handler'] = 'tratar_abertura_chamado_handler'
+    return messages
+
+def tratar_abertura_chamado_handler(user_input):
+    if user_input == "1":
+        return problema_circuito_menu_display()
+    elif user_input == "2":
+        session['form_fields'] = ["Nome do cliente requisitante:", "IP do Prefixo que deseja anunciar:", "AS do Prefixo:", "Chamado interno do cliente requisitante:"]
+        session['form_data_keys'] = ['nome_cliente', 'ip_prefixo', 'as_prefixo', 'chamado_interno']
+        session['form_title'] = "Para Liberação de Prefixos preciso que você informe os seguintes dados:"
+        session['form_summary_handler'] = 'liberacao_prefixo_summary'
+        # Inicia coleta de dados
+        session['current_handler'] = 'collect_form_data_handler'
+        session['current_field_index'] = 0
+        session['context'] = {}
+        return [session['form_title'], session['form_fields'][0]]
+    elif user_input == "3":
+        session['form_fields'] = ["Nome do cliente requisitante:", "ID da atividade que vai ser realizada:", "Horario de Inicio da Manutenção:", "Horario de Finalização da Manutenção:", "Chamado interno do cliente requisitante:"]
+        session['form_data_keys'] = ['nome_cliente', 'id_atividade', 'inicio_manutencao', 'fim_manutencao', 'chamado_interno']
+        session['form_title'] = "Para notificar o Agendamento de uma Manutenção preciso que você informe os seguintes dados:"
+        session['form_summary_handler'] = 'manutencao_agendada_summary'
+        # Inicia coleta de dados
+        session['current_handler'] = 'collect_form_data_handler'
+        session['current_field_index'] = 0
+        session['context'] = {}
+        return [session['form_title'], session['form_fields'][0]]
+    elif user_input == "0":
+        return menu_opcao_display()
+    else:
+        messages = abertura_chamado_menu_display()
+        messages.insert(0, "Opção inválida, tente novamente.")
+        return messages
+
+def problema_circuito_menu_display():
+    messages = [
+        "Qual problema o circuito está apresentando?",
+        "1- Intermitência",
+        "2- Perda de Pacote",
+        "3- Alta Latência",
+        "4- Incremento de Erros",
+        "5- Indisponível / Down",
+        "0- Voltar"
+    ]
+    session['current_handler'] = 'tratar_problema_circuito_handler'
+    return messages
+
+def tratar_problema_circuito_handler(user_input):
+    form_fields_base = ["Nome do cliente requisitante:", "ID do circuito:", "Tipo do circuito:", "Chamado interno do cliente requisitante:"]
+    form_data_keys_base = ['nome_cliente', 'id_circuito', 'tipo_circuito', 'chamado_interno']
+
+    if user_input == "1": # Intermitência
+        session['form_fields'] = [form_fields_base[0], form_fields_base[1], "Horário em que os flaps começaram:", form_fields_base[2], form_fields_base[3]]
+        session['form_data_keys'] = [form_data_keys_base[0], form_data_keys_base[1], 'horario_flaps', form_data_keys_base[2], form_data_keys_base[3]]
+        session['form_title'] = "Para Intermitências no circuito preciso que você informe os seguintes dados:"
+        session['form_summary_handler'] = 'intermitencia_summary'
+    elif user_input == "2": # Perda de Pacote
+        session['form_fields'] = [form_fields_base[0], form_fields_base[1], "Horário em que as perdas começaram:", form_fields_base[2], form_fields_base[3]]
+        session['form_data_keys'] = [form_data_keys_base[0], form_data_keys_base[1], 'horario_perdas', form_data_keys_base[2], form_data_keys_base[3]]
+        session['form_title'] = "Para Perda de Pacotes no circuito preciso que você informe os seguintes dados:"
+        session['form_summary_handler'] = 'perda_pacote_summary'
+    elif user_input == "3": # Alta Latência
+        session['form_fields'] = [form_fields_base[0], form_fields_base[1], "Horário em que houve alteração da latência:", form_fields_base[2], form_fields_base[3]]
+        session['form_data_keys'] = [form_data_keys_base[0], form_data_keys_base[1], 'horario_latencia', form_data_keys_base[2], form_data_keys_base[3]]
+        session['form_title'] = "Para Alta Latência no circuito preciso que você informe os seguintes dados:"
+        session['form_summary_handler'] = 'alta_latencia_summary'
+    elif user_input == "4": # Incremento de Erros
+        session['form_fields'] = form_fields_base
+        session['form_data_keys'] = form_data_keys_base
+        session['form_title'] = "Para Incremento de Erros no circuito preciso que você informe os seguintes dados:"
+        session['form_summary_handler'] = 'incremento_erros_summary'
+    elif user_input == "5": # Indisponível / Down
+        session['form_fields'] = [form_fields_base[0], form_fields_base[1], "Horário em que o circuito ficou Indisponível:", form_fields_base[2], form_fields_base[3]]
+        session['form_data_keys'] = [form_data_keys_base[0], form_data_keys_base[1], 'horario_indisponibilidade', form_data_keys_base[2], form_data_keys_base[3]]
+        session['form_title'] = "Para Indisponibilidade do circuito preciso que você informe os seguintes dados:"
+        session['form_summary_handler'] = 'indisponivel_down_summary'
+    elif user_input == "0":
+        return abertura_chamado_menu_display()
+    else:
+        messages = problema_circuito_menu_display()
+        messages.insert(0, "Opção inválida, tente novamente.")
+        return messages
+
+    # Inicia coleta de dados para o problema escolhido
+    session['current_handler'] = 'collect_form_data_handler'
+    session['current_field_index'] = 0
+    session['context'] = {}
+    return [session['form_title'], session['form_fields'][0]]
+
+
+# --- Handler genérico para coletar dados de formulários ---
+def collect_form_data_handler(user_input):
+    current_index_answered = session.get('current_field_index', 0) # Índice da pergunta que FOI RESPONDIDA
+    form_fields = session.get('form_fields', [])
+    form_data_keys = session.get('form_data_keys', [])
+    
+    # Salva a resposta atual
+    if current_index_answered < len(form_data_keys):
+        key_to_save = form_data_keys[current_index_answered]
+        session['context'][key_to_save] = user_input
+    else:
+        # Erro improvável se a lógica de configuração do formulário estiver correta
+        return ["Erro: Índice de campo inválido ao salvar dados."]
+
+    # Prepara para a próxima pergunta ou finaliza
+    next_field_index_to_ask = current_index_answered + 1
+    session['current_field_index'] = next_field_index_to_ask # Atualiza para o índice da PRÓXIMA pergunta
+
+    if next_field_index_to_ask < len(form_fields):
+        # Ainda há campos para perguntar
+        next_question = form_fields[next_field_index_to_ask]
+        return [next_question]
+    else:
+        # Todos os campos foram coletados, chama o handler de resumo
+        summary_handler_name = session.get('form_summary_handler')
+        if summary_handler_name and summary_handler_name in globals():
+            summary_handler_func = globals()[summary_handler_name]
+            return summary_handler_func(session['context'])
+        else:
+            return ["Erro: Handler de resumo do formulário não encontrado."]
+
+# --- Funções de Resumo e Finalização ---
+def finalizar_atendimento(summary_messages):
+    final_message = "Atendimento finalizado. Agradecemos o contato. Até logo!"
+    session.clear()
+    return summary_messages + [final_message]
+
+def intermitencia_summary(data):
+    messages = [
+        "Obrigado, os dados foram registrados para a abertura do seu chamado. Estamos abrindo seu chamado...",
+        "=== RESUMO DO CHAMADO ===",
+        f"Cliente: {data.get('nome_cliente', 'N/A')}",
+        f"ID do circuito: {data.get('id_circuito', 'N/A')}",
+        f"Horário dos flaps: {data.get('horario_flaps', 'N/A')}",
+        f"Tipo do circuito: {data.get('tipo_circuito', 'N/A')}",
+        f"Chamado interno: {data.get('chamado_interno', 'N/A')}",
+    ]
+    return finalizar_atendimento(messages)
+
+def perda_pacote_summary(data):
+    messages = [
+        "Obrigado, os dados foram registrados para a abertura do seu chamado. Estamos abrindo seu chamado...",
+        "=== RESUMO DO CHAMADO ===",
+        f"Cliente: {data.get('nome_cliente', 'N/A')}",
+        f"ID do circuito: {data.get('id_circuito', 'N/A')}",
+        f"Horário das perdas: {data.get('horario_perdas', 'N/A')}",
+        f"Tipo do circuito: {data.get('tipo_circuito', 'N/A')}",
+        f"Chamado interno: {data.get('chamado_interno', 'N/A')}",
+    ]
+    return finalizar_atendimento(messages)
+
+def alta_latencia_summary(data):
+    messages = [
+        "Obrigado, os dados foram registrados para a abertura do seu chamado. Estamos abrindo seu chamado...",
+        "=== RESUMO DO CHAMADO ===",
+        f"Cliente: {data.get('nome_cliente', 'N/A')}",
+        f"ID do circuito: {data.get('id_circuito', 'N/A')}",
+        f"Horário da Alta Latência: {data.get('horario_latencia', 'N/A')}",
+        f"Tipo do circuito: {data.get('tipo_circuito', 'N/A')}",
+        f"Chamado interno: {data.get('chamado_interno', 'N/A')}",
+    ]
+    return finalizar_atendimento(messages)
+
+def incremento_erros_summary(data):
+    messages = [
+        "Obrigado, os dados foram registrados para a abertura do seu chamado. Estamos abrindo seu chamado...",
+        "=== RESUMO DO CHAMADO ===",
+        f"Cliente: {data.get('nome_cliente', 'N/A')}",
+        f"ID do circuito: {data.get('id_circuito', 'N/A')}",
+        f"Tipo do circuito: {data.get('tipo_circuito', 'N/A')}",
+        f"Chamado interno: {data.get('chamado_interno', 'N/A')}",
+    ]
+    return finalizar_atendimento(messages)
+
+def indisponivel_down_summary(data):
+    messages = [
+        "Obrigado, os dados foram registrados para a abertura do seu chamado. Estamos abrindo seu chamado...",
+        "=== RESUMO DO CHAMADO ===",
+        f"Cliente: {data.get('nome_cliente', 'N/A')}",
+        f"ID do circuito: {data.get('id_circuito', 'N/A')}",
+        f"Horário da Indisponibilidade: {data.get('horario_indisponibilidade', 'N/A')}",
+        f"Tipo do circuito: {data.get('tipo_circuito', 'N/A')}",
+        f"Chamado interno: {data.get('chamado_interno', 'N/A')}",
+    ]
+    return finalizar_atendimento(messages)
+
+def liberacao_prefixo_summary(data):
+    messages = [
+        "Obrigado, os dados foram registrados para a abertura do seu chamado. Estamos abrindo seu chamado...",
+        "=== RESUMO DO CHAMADO ===",
+        f"Cliente: {data.get('nome_cliente', 'N/A')}",
+        f"IP do Prefixo: {data.get('ip_prefixo', 'N/A')}",
+        f"AS do Prefixo: {data.get('as_prefixo', 'N/A')}",
+        f"Chamado interno: {data.get('chamado_interno', 'N/A')}",
+    ]
+    return finalizar_atendimento(messages)
+
+def manutencao_agendada_summary(data):
+    messages = [
+        "Obrigado, os dados foram registrados para a abertura do seu chamado. Estamos abrindo seu chamado...",
+        "=== RESUMO DO CHAMADO ===",
+        f"Cliente: {data.get('nome_cliente', 'N/A')}",
+        f"ID da atividade: {data.get('id_atividade', 'N/A')}", # Corrigido de 'ativvidade'
+        f"Horário de Inicio: {data.get('inicio_manutencao', 'N/A')}",
+        f"Horário de Finalização: {data.get('fim_manutencao', 'N/A')}",
+        f"Chamado interno: {data.get('chamado_interno', 'N/A')}",
+    ]
+    return finalizar_atendimento(messages)
+
+# --- Comercial e Atendente ---
+def comercial_menu_display():
+    messages = [
+        "Nosso setor Comercial atende no horário 9:00 - 19:00:",
+        "1- Email para contato",
+        "0- Voltar"
+    ]
+    session['current_handler'] = 'tratar_comercial_handler'
+    return messages
+
+def tratar_comercial_handler(user_input):
+    if user_input == "1":
+        messages = ["O email para contato com o Comercial é o comercial@pinpoint.com"]
+        return finalizar_atendimento(messages)
+    elif user_input == "0":
+        return menu_opcao_display()
+    else:
+        messages = comercial_menu_display()
+        messages.insert(0, "Opção inválida, tente novamente.")
+        return messages
+
+def atendente_menu_display():
+    messages = [
+        "Nossos atendentes estão de prontidão para te atender:",
+        "1- Entrar em contato",
+        "0- Voltar"
+    ]
+    session['current_handler'] = 'tratar_atendente_handler'
+    return messages
+
+def tratar_atendente_handler(user_input):
+    if user_input == "1":
+        messages = ["Para entrar em contato com um dos nossos atendentes ligue no telefone 9 xxxx-xxxx"]
+        return finalizar_atendimento(messages)
+    elif user_input == "0":
+        return menu_opcao_display()
+    else:
+        messages = atendente_menu_display()
+        messages.insert(0, "Opção inválida, tente novamente.")
+        return messages
+
+# --- Rotas Flask ---
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/chat', methods=['POST'])
+def chat_endpoint(): # Renomeado para evitar conflito com o módulo 'chat' se houvesse
+    user_message = request.json.get('message')
+    bot_responses = []
+    
+    current_handler_name = session.get('current_handler')
+    if not current_handler_name : # Sessão expirou ou foi limpa (fim de conversa)
+        bot_responses = menu_opcao_display()
+        session['active_session'] = True # Marca que uma nova sessão está ativa
+    else:
+        handler_function = globals().get(current_handler_name)
+        if handler_function:
+            bot_responses = handler_function(user_message)
+            # Verifica se a sessão foi limpa por 'finalizar_atendimento'
+            session['active_session'] = 'current_handler' in session 
+        else:
+            bot_responses = ["Desculpe, ocorreu um erro interno no bot (handler não encontrado)."]
+            session.clear()
+            session['active_session'] = False
+            
+    return jsonify({'responses': bot_responses, 'session_active': session.get('active_session', False)})
+
+@app.route('/start_chat', methods=['GET'])
+def start_chat():
+    session.clear() 
+    bot_responses = menu_opcao_display()
+    session['active_session'] = True
+    return jsonify({'responses': bot_responses, 'session_active': True})
+
+if __name__ == '__main__':
+    app.run(debug=True)
+    ///////////////////////
+    <!DOCTYPE html>
+<html lang="pt-BR"> <!-- Alterado para pt-BR -->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pinbot Atendimento</title> <!-- Título alterado -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <div class="bg" style="background-image: url('{{ url_for('static', filename='res/hd2.jpg') }}');"></div>
+  <div class="chat">
+    <div class="chat-title">
+      <div class="avatar">
+        <!-- Usar um avatar genérico para o bot ou o seu específico -->
+        <img src="{{ url_for('static', filename='res/avatar.jpg') }}" alt="Pinbot Avatar">
+      </div>
+      <h1>Pinbot</h1> <!-- Nome do Bot -->
+      <h2>Online</h2>
+    </div>
+    <div class="messages">
+      <div class="messages-content" id="messages-content">
+        <!-- As mensagens serão inseridas aqui pelo JavaScript -->
+      </div>
+    </div>
+    <div class="message-box">
+      <textarea id="message-input" class="message-input" placeholder="Digite sua opção ou mensagem..."></textarea>
+      <button id="message-submit" class="message-submit">Enviar</button>
+    </div>
+  </div>
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
+/////////////////////
+/*--------------------
+Mixins
+--------------------*/
+/*--------------------
+Body
+--------------------*/
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: -webkit-linear-gradient(315deg, #044f48, #2a7561);
+  background: linear-gradient(135deg, #044f48, #2a7561);
+  background-size: cover;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 12px;
+  line-height: 1.3;
+  overflow: hidden;
+}
+
+.bg {
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  /* A imagem de fundo é definida inline no HTML via Flask para este exemplo,
+     mas se preferir, pode descomentar e ajustar o caminho aqui. */
+  /* background: url("res/hd2.jpg") no-repeat 0 0; */
+  -webkit-filter: blur(80px);
+          filter: blur(80px);
+  -webkit-transform: scale(1.2);
+          transform: scale(1.2);
+}
+
+/*--------------------
+Chat
+--------------------*/
+.chat {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  -webkit-transform: translate(-50%, -50%);
+          transform: translate(-50%, -50%);
+  width: 300px;
+  height: 80vh;
+  max-height: 500px;
+  z-index: 2;
+  overflow: hidden;
+  box-shadow: 0 5px 30px rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 20px;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: justify;
+  -webkit-justify-content: space-between;
+      -ms-flex-pack: justify;
+          justify-content: space-between;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  -webkit-flex-direction: column;
+      -ms-flex-direction: column;
+          flex-direction: column;
+}
+
+/*--------------------
+Chat Title
+--------------------*/
+.chat-title {
+  -webkit-box-flex: 0;
+  -webkit-flex: 0 1 45px;
+      -ms-flex: 0 1 45px;
+          flex: 0 1 45px;
+  position: relative;
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  text-transform: uppercase;
+  text-align: left;
+  padding: 10px 10px 10px 50px;
+}
+.chat-title h1, .chat-title h2 {
+  font-weight: normal;
+  font-size: 10px;
+  margin: 0;
+  padding: 0;
+}
+.chat-title h2 {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+.chat-title .avatar {
+  position: absolute;
+  z-index: 1;
+  top: 8px;
+  left: 9px;
+  border-radius: 30px;
+  width: 30px;
+  height: 30px;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.24);
+}
+.chat-title .avatar img {
+  width: 100%;
+  height: auto;
+}
+
+/*--------------------
+Messages
+--------------------*/
+.messages {
+  -webkit-box-flex: 1;
+  -webkit-flex: 1 1 auto;
+      -ms-flex: 1 1 auto;
+          flex: 1 1 auto;
+  color: rgba(255, 255, 255, 0.5);
+  overflow: hidden; /* Alterado para hidden para que o scroll interno funcione */
+  overflow-y: auto; /* Adicionado para permitir scroll vertical */
+  position: relative;
+  width: 100%;
+}
+.messages .messages-content {
+  /* Removido position absolute e height 101% para permitir o scroll natural do pai .messages */
+  width: 100%;
+  padding: 0 10px; /* Adicionado padding que estava no .mCSB_container */
+}
+.messages .message {
+  clear: both;
+  float: left;
+  padding: 6px 10px 7px;
+  border-radius: 10px 10px 10px 0;
+  background: rgba(0, 0, 0, 0.3);
+  margin: 8px 0;
+  font-size: 11px;
+  line-height: 1.4;
+  margin-left: 35px; /* Espaço para o avatar */
+  position: relative;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+  max-width: calc(100% - 45px); /* Evitar que a mensagem ultrapasse muito */
+  word-wrap: break-word; /* Quebrar palavras longas */
+}
+.messages .message .timestamp {
+  display: block; /* Para ficar abaixo da mensagem */
+  /* position: absolute; */ /* Removido para comportamento mais simples */
+  /* bottom: -15px; */
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.3);
+  text-align: left; /* Ajustar alinhamento */
+  margin-top: 3px;
+}
+.messages .message::before { /* Estilo do balão */
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  border-top: 6px solid rgba(0, 0, 0, 0.3);
+  left: 0;
+  border-right: 7px solid transparent;
+}
+.messages .message .avatar {
+  position: absolute;
+  z-index: 1;
+  bottom: 0px; /* Alinhado com a base da mensagem */
+  left: -35px; /* Posiciona à esquerda da mensagem */
+  border-radius: 30px;
+  width: 30px;
+  height: 30px;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.24);
+}
+.messages .message .avatar img {
+  width: 100%;
+  height: auto;
+}
+.messages .message.message-personal {
+  float: right;
+  color: #fff;
+  text-align: right;
+  background: -webkit-linear-gradient(330deg, #248A52, #257287);
+  background: linear-gradient(120deg, #248A52, #257287);
+  border-radius: 10px 10px 0 10px;
+  margin-left: 0; /* Reset margin-left */
+  margin-right: 10px; /* Adiciona uma pequena margem à direita para não colar na borda */
+}
+.messages .message.message-personal::before { /* Estilo do balão para msg pessoal */
+  left: auto;
+  right: 0;
+  border-right: none;
+  border-left: 5px solid transparent;
+  border-top: 4px solid #257287; /* Cor da ponta do balão */
+  bottom: -4px;
+}
+.messages .message.message-personal .timestamp {
+  text-align: right; /* Alinha timestamp à direita para msg pessoal */
+}
+/* Remove avatar das mensagens pessoais, pois não tem no design original */
+.messages .message.message-personal .avatar {
+  display: none;
+}
+
+.messages .message:last-child {
+  margin-bottom: 30px;
+}
+.messages .message.new {
+  -webkit-transform: scale(0);
+          transform: scale(0);
+  -webkit-transform-origin: 0 0;
+          transform-origin: 0 0;
+  -webkit-animation: bounce 500ms linear both;
+          animation: bounce 500ms linear both;
+}
+.messages .message.message-personal.new {
+    transform-origin: 100% 0; /* Origem da animação para mensagens pessoais */
+}
+
+.messages .message.loading {
+    background: rgba(0, 0, 0, 0.3); /* Mesmo fundo das mensagens do bot */
+}
+.messages .message.loading::before { /* Estilo do balão para loading */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  -webkit-transform: translate(-50%, -50%);
+          transform: translate(-50%, -50%);
+  content: '';
+  display: block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  z-index: 2;
+  margin-top: 4px;
+  -webkit-animation: ball 0.45s cubic-bezier(0, 0, 0.15, 1) alternate infinite;
+          animation: ball 0.45s cubic-bezier(0, 0, 0.15, 1) alternate infinite;
+  border: none;
+  -webkit-animation-delay: .15s;
+          animation-delay: .15s;
+}
+.messages .message.loading span { /* Container dos pontinhos */
+  display: block;
+  font-size: 0;
+  width: 20px;
+  height: 10px;
+  position: relative;
+}
+.messages .message.loading span::before { /* Primeiro pontinho */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  -webkit-transform: translate(-50%, -50%);
+          transform: translate(-50%, -50%);
+  content: '';
+  display: block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  z-index: 2;
+  margin-top: 4px;
+  -webkit-animation: ball 0.45s cubic-bezier(0, 0, 0.15, 1) alternate infinite;
+          animation: ball 0.45s cubic-bezier(0, 0, 0.15, 1) alternate infinite;
+  margin-left: -7px;
+}
+.messages .message.loading span::after { /* Terceiro pontinho */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  -webkit-transform: translate(-50%, -50%);
+          transform: translate(-50%, -50%);
+  content: '';
+  display: block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  z-index: 2;
+  margin-top: 4px;
+  -webkit-animation: ball 0.45s cubic-bezier(0, 0, 0.15, 1) alternate infinite;
+          animation: ball 0.45s cubic-bezier(0, 0, 0.15, 1) alternate infinite;
+  margin-left: 7px;
+  -webkit-animation-delay: .3s;
+          animation-delay: .3s;
+}
+
+/*--------------------
+Message Box
+--------------------*/
+.message-box {
+  -webkit-box-flex: 0;
+  -webkit-flex: 0 1 40px;
+      -ms-flex: 0 1 40px;
+          flex: 0 1 40px;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px;
+  position: relative;
+  border-bottom-left-radius: 20px; /* Arredondar cantos inferiores */
+  border-bottom-right-radius: 20px;
+}
+.message-box .message-input {
+  background: none;
+  border: none;
+  outline: none !important;
+  resize: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11px;
+  height: 17px;
+  margin: 0;
+  padding-right: 20px; /* Espaço para o botão não sobrepor */
+  width: calc(100% - 70px); /* Ajustar largura para caber botão e padding */
+  float: left; /* Alinhar à esquerda */
+}
+.message-box textarea:focus:-webkit-placeholder {
+  color: transparent;
+}
+.message-box .message-submit {
+  position: absolute;
+  z-index: 1;
+  top: 9px;
+  right: 10px;
+  color: #fff;
+  border: none;
+  background: #248A52;
+  font-size: 10px;
+  text-transform: uppercase;
+  line-height: 1;
+  padding: 6px 10px;
+  border-radius: 10px;
+  outline: none !important;
+  -webkit-transition: background .2s ease;
+  transition: background .2s ease;
+}
+.message-box .message-submit:hover {
+  background: #1D7745;
+}
+
+/*--------------------
+Custom Srollbar (Removido pois não estamos usando mCustomScrollbar)
+--------------------*/
+/* .mCSB_scrollTools { ... } */
+/* .mCSB_inside > .mCSB_container { ... } */
+/* .mCSB_scrollTools .mCSB_dragger .mCSB_dragger_bar { ... } */
+
+/*--------------------
+Bounce Animation
+--------------------*/
+@-webkit-keyframes bounce {
+  0% {
+    -webkit-transform: matrix3d(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  4.7% {
+    -webkit-transform: matrix3d(0.45, 0, 0, 0, 0, 0.45, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(0.45, 0, 0, 0, 0, 0.45, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  9.41% {
+    -webkit-transform: matrix3d(0.883, 0, 0, 0, 0, 0.883, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(0.883, 0, 0, 0, 0, 0.883, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  14.11% {
+    -webkit-transform: matrix3d(1.141, 0, 0, 0, 0, 1.141, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(1.141, 0, 0, 0, 0, 1.141, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  18.72% {
+    -webkit-transform: matrix3d(1.212, 0, 0, 0, 0, 1.212, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(1.212, 0, 0, 0, 0, 1.212, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  24.32% {
+    -webkit-transform: matrix3d(1.151, 0, 0, 0, 0, 1.151, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(1.151, 0, 0, 0, 0, 1.151, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  29.93% {
+    -webkit-transform: matrix3d(1.048, 0, 0, 0, 0, 1.048, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(1.048, 0, 0, 0, 0, 1.048, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  35.54% {
+    -webkit-transform: matrix3d(0.979, 0, 0, 0, 0, 0.979, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(0.979, 0, 0, 0, 0, 0.979, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  41.04% {
+    -webkit-transform: matrix3d(0.961, 0, 0, 0, 0, 0.961, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(0.961, 0, 0, 0, 0, 0.961, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  52.15% {
+    -webkit-transform: matrix3d(0.991, 0, 0, 0, 0, 0.991, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(0.991, 0, 0, 0, 0, 0.991, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  63.26% {
+    -webkit-transform: matrix3d(1.007, 0, 0, 0, 0, 1.007, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(1.007, 0, 0, 0, 0, 1.007, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  85.49% {
+    -webkit-transform: matrix3d(0.999, 0, 0, 0, 0, 0.999, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(0.999, 0, 0, 0, 0, 0.999, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  100% {
+    -webkit-transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+}
+@keyframes bounce {
+  0% {
+    -webkit-transform: matrix3d(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  4.7% {
+    -webkit-transform: matrix3d(0.45, 0, 0, 0, 0, 0.45, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(0.45, 0, 0, 0, 0, 0.45, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  9.41% {
+    -webkit-transform: matrix3d(0.883, 0, 0, 0, 0, 0.883, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(0.883, 0, 0, 0, 0, 0.883, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  14.11% {
+    -webkit-transform: matrix3d(1.141, 0, 0, 0, 0, 1.141, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(1.141, 0, 0, 0, 0, 1.141, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  18.72% {
+    -webkit-transform: matrix3d(1.212, 0, 0, 0, 0, 1.212, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(1.212, 0, 0, 0, 0, 1.212, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  24.32% {
+    -webkit-transform: matrix3d(1.151, 0, 0, 0, 0, 1.151, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(1.151, 0, 0, 0, 0, 1.151, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  29.93% {
+    -webkit-transform: matrix3d(1.048, 0, 0, 0, 0, 1.048, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(1.048, 0, 0, 0, 0, 1.048, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  35.54% {
+    -webkit-transform: matrix3d(0.979, 0, 0, 0, 0, 0.979, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(0.979, 0, 0, 0, 0, 0.979, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  41.04% {
+    -webkit-transform: matrix3d(0.961, 0, 0, 0, 0, 0.961, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(0.961, 0, 0, 0, 0, 0.961, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  52.15% {
+    -webkit-transform: matrix3d(0.991, 0, 0, 0, 0, 0.991, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(0.991, 0, 0, 0, 0, 0.991, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  63.26% {
+    -webkit-transform: matrix3d(1.007, 0, 0, 0, 0, 1.007, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(1.007, 0, 0, 0, 0, 1.007, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  85.49% {
+    -webkit-transform: matrix3d(0.999, 0, 0, 0, 0, 0.999, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(0.999, 0, 0, 0, 0, 0.999, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+  100% {
+    -webkit-transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+            transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  }
+}
+@-webkit-keyframes ball {
+  from {
+    -webkit-transform: translateY(0) scaleY(0.8);
+            transform: translateY(0) scaleY(0.8);
+  }
+  to {
+    -webkit-transform: translateY(-10px);
+            transform: translateY(-10px);
+  }
+}
+@keyframes ball {
+  from {
+    -webkit-transform: translateY(0) scaleY(0.8);
+            transform: translateY(0) scaleY(0.8);
+  }
+  to {
+    -webkit-transform: translateY(-10px);
+            transform: translateY(-10px);
+  }
+}
+////////////////////////
+document.addEventListener('DOMContentLoaded', function() {
+    const messagesContent = document.getElementById('messages-content');
+    const messageInput = document.getElementById('message-input');
+    const messageSubmit = document.getElementById('message-submit');
+    const chatAvatar = document.querySelector('.chat-title .avatar img').src; // Pega o avatar do bot
+    let sessionActive = true; // Controla se a sessão está ativa
+
+    // Função para adicionar mensagem à UI
+    function addMessageToUI(text, type = 'bot', avatarSrc = chatAvatar) {
+        const msgContainer = document.createElement('div'); // Container para avatar e texto
+        msgContainer.classList.add('message');
+        if (type === 'user') {
+            msgContainer.classList.add('message-personal');
+        } else {
+            // Adicionar avatar para mensagens do bot
+            const avatarDiv = document.createElement('div');
+            avatarDiv.classList.add('avatar');
+            const img = document.createElement('img');
+            img.src = avatarSrc;
+            img.alt = (type === 'bot' ? "Bot" : "User") + " Avatar";
+            avatarDiv.appendChild(img);
+            msgContainer.appendChild(avatarDiv);
+        }
+
+        // Adiciona o texto da mensagem. Quebras de linha do bot são convertidas para <br>
+        const textNode = document.createElement('span'); 
+        textNode.innerHTML = text.replace(/\n/g, '<br>');
+        msgContainer.appendChild(textNode);
+
+
+        const timestamp = document.createElement('span');
+        timestamp.classList.add('timestamp');
+        timestamp.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        // Adicionar timestamp dentro do textNode se for msg pessoal, ou após se for bot
+        // Para melhor alinhamento com o CSS original, vamos adicionar sempre no final do msgContainer
+        msgContainer.appendChild(timestamp);
+        
+        messagesContent.appendChild(msgContainer);
+        // messagesContent.scrollTop = messagesContent.scrollHeight; // Auto-scroll
+        // Scroll para a última mensagem
+        msgContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        
+        // Adiciona a classe 'new' para animação e remove depois
+        msgContainer.classList.add('new');
+        setTimeout(() => {
+            msgContainer.classList.remove('new');
+        }, 500); // Duração da animação 'bounce'
+    }
+
+    // Função para mostrar mensagem de "digitando..."
+    function showLoadingIndicator() {
+        if (document.querySelector('.message.loading')) return; // Evita múltiplos loaders
+
+        const loadingDiv = document.createElement('div');
+        loadingDiv.classList.add('message', 'loading'); // Bot está digitando
+        
+        const avatarDiv = document.createElement('div');
+        avatarDiv.classList.add('avatar');
+        const img = document.createElement('img');
+        img.src = chatAvatar; // Avatar do bot
+        img.alt = "Bot Avatar";
+        avatarDiv.appendChild(img);
+        loadingDiv.appendChild(avatarDiv); // Adiciona avatar ao loading
+
+        const spanDots = document.createElement('span'); // Para os pontinhos
+        loadingDiv.appendChild(spanDots);
+
+        messagesContent.appendChild(loadingDiv);
+        // loadingDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        messagesContent.scrollTop = messagesContent.scrollHeight;
+
+    }
+
+    function hideLoadingIndicator() {
+        const loadingDiv = document.querySelector('.message.loading');
+        if (loadingDiv) {
+            loadingDiv.remove();
+        }
+    }
+
+    // Função para enviar mensagem ao backend
+    async function sendMessage(messageText) {
+        if (!sessionActive && messageText.toLowerCase() !== 'iniciar') {
+             addMessageToUI("A sessão anterior foi encerrada. Digite 'iniciar' para começar uma nova conversa.", 'bot');
+             return;
+        }
+        // Permite enviar "iniciar" mesmo que vazio (após trim) se a sessão não estiver ativa
+        if (messageText.trim() === '' && (sessionActive || messageText.toLowerCase() !== 'iniciar')) return;
+
+
+        let endpoint = '/chat';
+        let payload = { message: messageText };
+        let methodType = 'POST';
+
+        if (messageText.toLowerCase() === 'iniciar' && !sessionActive) {
+            endpoint = '/start_chat'; 
+            payload = {}; 
+            methodType = 'GET';
+            // Não adiciona "iniciar" como mensagem do usuário visualmente, apenas reinicia.
+        } else {
+             addMessageToUI(messageText, 'user');
+        }
+        
+        const currentMessageValue = messageInput.value; // Salva antes de limpar
+        messageInput.value = ''; 
+        showLoadingIndicator();
+
+        try {
+            const fetchOptions = {
+                method: methodType,
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            };
+            if (methodType === 'POST') {
+                fetchOptions.body = JSON.stringify(payload);
+            }
+
+            const response = await fetch(endpoint, fetchOptions);
+            const data = await response.json();
+            
+            hideLoadingIndicator();
+
+            if (data.responses && data.responses.length > 0) {
+                data.responses.forEach((res, index) => {
+                    setTimeout(() => { 
+                        addMessageToUI(res, 'bot');
+                    }, index * 400); // Pequeno delay entre mensagens do bot
+                });
+            }
+            sessionActive = data.session_active;
+            if (!sessionActive) {
+                messageInput.placeholder = "Sessão encerrada. Digite 'iniciar' para recomeçar.";
+                messageInput.disabled = false; 
+            } else {
+                messageInput.placeholder = "Digite sua opção ou mensagem...";
+                messageInput.disabled = false;
+            }
+
+        } catch (error) {
+            hideLoadingIndicator();
+            addMessageToUI('Erro ao conectar com o servidor. Tente novamente.', 'bot');
+            console.error('Error:', error);
+            // Se houve erro, talvez o usuário queira reenviar a mensagem que não foi
+            if (type !== 'user' && messageText.toLowerCase() !== 'iniciar') {
+                 messageInput.value = currentMessageValue; // Restaura a mensagem não enviada
+            }
+            sessionActive = false; 
+            messageInput.placeholder = "Erro. Digite 'iniciar' para tentar recomeçar.";
+        }
+    }
+
+    // Event listeners
+    messageSubmit.addEventListener('click', () => sendMessage(messageInput.value));
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) { 
+            e.preventDefault(); 
+            sendMessage(messageInput.value);
+        }
+    });
+
+    // Iniciar a conversa quando a página carrega
+    async function startConversation() {
+        messageInput.disabled = true; // Desabilita input enquanto carrega
+        showLoadingIndicator();
+        try {
+            const response = await fetch('/start_chat', { method: 'GET' });
+            const data = await response.json();
+            hideLoadingIndicator();
+            if (data.responses && data.responses.length > 0) {
+                 data.responses.forEach((res, index) => {
+                    setTimeout(() => {
+                        addMessageToUI(res, 'bot');
+                    }, index * 300); // Delay inicial
+                });
+            }
+            sessionActive = data.session_active;
+             if (!sessionActive) { // Pouco provável ao iniciar, mas para consistência
+                messageInput.placeholder = "Sessão encerrada. Digite 'iniciar' para recomeçar.";
+            } else {
+                messageInput.placeholder = "Digite sua opção ou mensagem...";
+            }
+            messageInput.disabled = false; 
+        } catch (error) {
+            hideLoadingIndicator();
+            addMessageToUI('Não foi possível iniciar o chat. Verifique sua conexão ou tente mais tarde.', 'bot');
+            console.error('Error starting chat:', error);
+            messageInput.placeholder = "Erro ao carregar. Tente recarregar a página.";
+            // messageInput.disabled = true; // Mantém desabilitado em caso de erro total no início
+        }
+    }
+
+    startConversation(); 
+});
+////////////////
+avatar.jpg
+hd2.jpg
+
+
+
+(considere caso precise de base apeanas os elimine as cores <section id="rd-section-k8hluh9z" class="bricks--section rd-section">
+  
+
+<style type="text/css" rel="stylesheet">
+  
+    #rd-row-k8hluoen {
+      min-height: 56px;
+    }
+
+    #rd-row-k8hluoen .bricks--column > div {
+      min-height: 56px;
+    }
+
+    @media (max-width: 480px) {
+      #rd-row-k8hluoen.bricks--row {
+        min-height: auto;
+      }
+    }
+
+    @media screen and (max-width: 767px) {
+      #rd-row-k8hluoen.bricks--row.rd-row {
+        min-height: auto;
+      }
+    }
+  
+</style>
+
+<div id="rd-row-k8hluoen" class="bricks--row rd-row">
+  
+
+<style type="text/css" rel="stylesheet">
+  
+    #rd-column-kd8udthb {
+      flex: 2 0 0;
+    }
+
+    #rd-column-kd8udthb > div {
+      
+          background-color: transparent;
+        
+      justify-content: center;
+      padding-top: 0px;
+      padding-right: 10px;
+      padding-bottom: 0px;
+      padding-left: 10px;
+    }
+    @media screen and (max-width: 767px) {
+      #rd-column-kd8udthb > div {
+        min-height: auto !important;
+      }
+    }
+  
+
+  
+</style>
+
+<div id="rd-column-kd8udthb" class="bricks--column rd-column">
+  <div>
+    
+
+<style type="text/css" rel="stylesheet">
+  
+    #rd-image-kd8udzxl {
+      margin-top: 10px;
+      margin-bottom: 10px;
+      align-self: center;
+      max-width: 50px;
+    }
+
+    #rd-image-kd8udzxl a,
+    #rd-image-kd8udzxl img {
+      width: 50px;
+      max-width: 100%;
+      height: auto;
+      border-bottom-style: none;
+      border-color: #000000;
+      border-left-style: none;
+      border-radius: 0px;
+      border-right-style: none;
+      border-top-style: none;
+      border-width: 1px;
+    }
+    @media screen and (max-width: 767px) {
+      #rd-image-kd8udzxl {
+        align-self: center;
+      }
+    }
+  
+
+  
+</style>
+
+
+
+<div id="rd-image-kd8udzxl" class="bricks--component bricks--component-image rd-image">
+  
+        <img src="https://d335luupugsy2.cloudfront.net/cms/files/441443/1646920546/$aimrqqfwjd" alt="">
+
+  
+</div>
+
+  </div>
+</div>
+
+
+<style type="text/css" rel="stylesheet">
+  
+    #rd-column-k8hluoeo {
+      flex: 10 0 0;
+    }
+
+    #rd-column-k8hluoeo > div {
+      
+          background-color: transparent;
+        
+      justify-content: center;
+      padding-top: 0px;
+      padding-right: 15px;
+      padding-bottom: 0px;
+      padding-left: 15px;
+    }
+    @media screen and (max-width: 767px) {
+      #rd-column-k8hluoeo > div {
+        min-height: auto !important;
+      }
+    }
+  
+
+  
+</style>
+
+<div id="rd-column-k8hluoeo" class="bricks--column rd-column">
+  <div>
+    
+<style type="text/css" rel="stylesheet">
+  
+    #rd-text-dk3tvgr2 {
+      display: block;
+      border-bottom-style: none;
+      border-color: #000000;
+      border-left-style: none;
+      border-radius: 0px;
+      border-right-style: none;
+      border-top-style: none;
+      border-width: 1px;
+      min-height: autopx;
+      max-width: 340px;
+      margin-top: 10px;
+      margin-bottom: 2px;
+      align-self: flex-start;
+      width: 100%;
+      word-break: break-word;
+    }
+  
+
+  
+</style>
+
+<div id="rd-text-dk3tvgr2" class="bricks--component bricks--component-text rd-text">
+  <p style="line-height: 1;"><strong style="font-family: Raleway, sans-serif; color: rgb(255, 255, 255); font-size: 18px;">Eduardo Marques | Pinpoint</strong></p>
+</div>
+
+
+
+<style type="text/css" rel="stylesheet">
+  
+    #rd-text-kd5tygr3 {
+      display: block;
+      border-bottom-style: none;
+      border-color: #000000;
+      border-left-style: none;
+      border-radius: 0px;
+      border-right-style: none;
+      border-top-style: none;
+      border-width: 1px;
+      min-height: autopx;
+      max-width: 340px;
+      margin-top: 2px;
+      margin-bottom: 10px;
+      align-self: flex-start;
+      width: 100%;
+      word-break: break-word;
+    }
+  
+
+  
+</style>
+
+<div id="rd-text-kd5tygr3" class="bricks--component bricks--component-text rd-text">
+  <p style="line-height: 1;"><span style="font-size: 14px; color: rgb(255, 255, 255); font-family: Raleway, sans-serif;">online</span></p>
+</div>
+
+
+
+  </div>
+</div>
+
+</div>
+
+
+<style type="text/css" rel="stylesheet">
+  
+    #rd-row-k8hluha0 {
+      min-height: 252px;
+    }
+
+    #rd-row-k8hluha0 .bricks--column > div {
+      min-height: 252px;
+    }
+
+    @media (max-width: 480px) {
+      #rd-row-k8hluha0.bricks--row {
+        min-height: auto;
+      }
+    }
+
+    @media screen and (max-width: 767px) {
+      #rd-row-k8hluha0.bricks--row.rd-row {
+        min-height: auto;
+      }
+    }
+  
+</style>
+
+<div id="rd-row-k8hluha0" class="bricks--row rd-row">
+  
+
+<style type="text/css" rel="stylesheet">
+  
+    #rd-column-k8hluha1 {
+      flex: 12 0 0;
+    }
+
+    #rd-column-k8hluha1 > div {
+      
+            background-image: url(https://d335luupugsy2.cloudfront.net/cms/files/18740/1595939276/$ubt4h4q1mvh), linear-gradient(to bottom, rgba(233,224,215,1) 0%, rgba(233,224,215,1) 100%);
+            background-position-x: 50%;
+            background-position-y: 100%;
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-attachment: scroll;
+          
+      justify-content: center;
+      padding-top: 0px;
+      padding-right: 15px;
+      padding-bottom: 0px;
+      padding-left: 15px;
+    }
+    @media screen and (max-width: 767px) {
+      #rd-column-k8hluha1 > div {
+        min-height: auto !important;
+      }
+    }
+  
+
+  
+</style>
+
+<div id="rd-column-k8hluha1" class="bricks--column rd-column">
+  <div>
+    
+
+<style type="text/css" rel="stylesheet">
+  
+    #rd-box-kd0h0qwg {
+      
+          background-color: rgba(255,255,255,1);
+        
+      border-bottom-style: solid;
+      border-color: #cacaca;
+      border-left-style: solid;
+      border-radius: 6px;
+      border-right-style: none;
+      border-top-style: none;
+      border-width: 1px;
+      padding-top: 0px;
+      padding-right: 12px;
+      padding-bottom: 0px;
+      padding-left: 12px;
+      min-height: auto-20px;
+      margin-top: 15px;
+      margin-bottom: 10px;
+      max-width: 448px;
+      align-self: flex-start;
+      display: flex;
+      flex-direction: column;
+    }
+  
+</style>
+
+<div id="rd-box-kd0h0qwg" class="bricks--component bricks--component-box rd-box">
+  
+<style type="text/css" rel="stylesheet">
+  
+    #rd-text-kd0gxbsf {
+      display: block;
+      border-bottom-style: none;
+      border-color: #000000;
+      border-left-style: none;
+      border-radius: 0px;
+      border-right-style: none;
+      border-top-style: none;
+      border-width: 1px;
+      min-height: auto-22px;
+      max-width: 446px;
+      margin-top: 12px;
+      margin-bottom: 12px;
+      align-self: flex-start;
+      width: 100%;
+      word-break: break-word;
+    }
+  
+
+  
+</style>
+
+<div id="rd-text-kd0gxbsf" class="bricks--component bricks--component-text rd-text">
+  <p style="line-height: 1.25;"><span style="font-family: Raleway, sans-serif;">Olá, está com alguma dúvida?</span></p>
+</div>
+
+
+
+<style type="text/css" rel="stylesheet">
+  
+    #rd-text-l0l8f000 {
+      display: block;
+      border-bottom-style: none;
+      border-color: #000000;
+      border-left-style: none;
+      border-radius: 0px;
+      border-right-style: none;
+      border-top-style: none;
+      border-width: 1px;
+      min-height: auto-22px;
+      max-width: 446px;
+      margin-top: 12px;
+      margin-bottom: 12px;
+      align-self: flex-start;
+      width: 100%;
+      word-break: break-word;
+    }
+  
+
+  
+</style>
+
+<div id="rd-text-l0l8f000" class="bricks--component bricks--component-text rd-text">
+  <p style="line-height: 1.25;"><span style="font-family: Raleway, sans-serif;">Preencha os campos abaixo com seus dados 👇 para iniciar nossa conversa.</span></p>
+</div>
+
+
+
+</div>
+
+
+<style type="text/css" rel="stylesheet">
+  
+    #rd-form-joq3m2vy {
+      align-self: flex-end;
+      max-width: 357px;
+      margin-top: 0px;
+      margin-bottom: 15px;
+    }
+
+    #rd-form-joq3m2vy .bricks-form__fieldset {
+      flex-flow: column nowrap;
+    }
+
+    #rd-form-joq3m2vy .bricks-form__field {
+      margin-bottom: 10px;
+      padding: 0;
+      width: 100.0%;
+    }
+
+    #rd-form-joq3m2vy .bricks-form__field.bricks-form__privacy,
+    #rd-form-joq3m2vy .bricks-form__field.bricks-form__terms {
+      width: 100%;
+    }
+
+     #rd-form-joq3m2vy .bricks-form__static {
+      color: #000000;
+      font-family: Raleway, sans-serif;
+      font-size: 14px;
+      font-style: normal;
+      font-weight: normal;
+    }
+
+    #rd-form-joq3m2vy .bricks-form__static a {
+      color: #000000;
+      text-decoration: underline;
+    }
+
+    #rd-form-joq3m2vy .bricks-form__label {
+      color: #000000;
+      display: inline-block;
+      font-family: Raleway, sans-serif;
+      font-size: 14px;
+      font-style: normal;
+      font-weight: normal;
+      text-align: left;
+      text-decoration: none;
+    }
+
+    #rd-form-joq3m2vy .bricks-form__input {
+      color: #000000;
+      font-family: Raleway, sans-serif;
+      font-size: 14px;
+
+      background-color: #ffffff;
+
+      border-bottom-style: none;
+      border-left-style: none;
+      border-right-style: none;
+      border-top-style: none;
+      border-color: #000000;
+      border-radius: 10px;
+      border-width: 1px;
+      max-width: 100% !important;
+
+      
+    }
+
+    #rd-form-joq3m2vy .bricks-form__input::placeholder {
+      color: transparent;
+    }
+
+    #rd-form-joq3m2vy .select2-container .select2-choice {
+      height: 40px !important;
+      line-height: 40px !important;
+
+      color: #000000 !important;
+      font-family: Raleway, sans-serif !important;
+      font-size: 14px !important;
+    }
+
+    #rd-form-joq3m2vy .bricks-form__input:not(textarea) {
+      height: 40px;
+    }
+
+    #rd-form-joq3m2vy .with-select-flags > .phone-input-group {
+      display: flex;
+    }
+
+    #rd-form-joq3m2vy .with-select-flags > .phone-input-group > .phone-country > .choices {
+      height: 40px !important;
+    }
+
+    #rd-form-joq3m2vy .with-select-flags > .phone-input-group > .phone-country > .choices > .choices__inner{
+      position: relative;
+      width: 60px;
+      background-color: #ffffff;
+      border-bottom-style: none;
+      border-left-style: none;
+      border-top-style: none;
+      border-color: #000000;
+      border-width: 1px;
+      border-right: 0px;
+      border-top-right-radius: 0px;
+      border-bottom-right-radius: 0px;
+      border-top-left-radius: 10px;
+      border-bottom-left-radius: 10px;
+      padding-bottom: 0px;
+      margin-bottom: 0px;
+      min-height: 100%;
+    }
+
+    #rd-form-joq3m2vy .with-select-flags > .phone-input-group > .phone-country > .choices .choices__inner .flag {
+      top: 50%;
+      left: calc(50% - 10px);
+      position: absolute;
+      transform: translate(-50%, -50%);
+    }
+
+    #rd-form-joq3m2vy .with-select-flags > .phone-input-group .phone {
+      width: calc(100% - 55px);
+      border-top-left-radius: 0px;
+      border-bottom-left-radius: 0px;
+    }
+
+    #rd-form-joq3m2vy .with-select-flags > .phone-input-group > .phone-country {
+      width: 60px;
+      display: inline-block;
+      height: 40px !important;
+    }
+
+    #rd-form-joq3m2vy .with-select-flags > .phone-input-group > .phone-country .choices__list--dropdown {
+      width: 300px;
+    }
+
+    #rd-form-joq3m2vy .has-danger .bricks-form__input {
+      border: solid 1px #DC3543;
+    }
+
+    #rd-form-joq3m2vy .has-danger div.pristine-error {
+      color: #DC3543;
+      font-size: 12px;
+    }
+
+    #rd-form-joq3m2vy input[type="date"] {
+      -webkit-appearance: none;
+    }
+
+    #rd-form-joq3m2vy input[type="date"]::before { 
+    	content: ;
+    	width: 100%;
+    }
+    
+    input[type="date"]:focus::before,
+    input[type="date"]:valid::before { display: none }
+  
+</style>
+
+<div id="rd-form-joq3m2vy" class="bricks--component bricks-form rd-form">
+  <form class="rdstation-popup-js-form-identifier" action="https://cta-redirect.rdstation.com/v2/conversions" data-typed-fields="1" data-lang="pt-BR" data-popup-action="eyJ0eXBlIjoid2hhdHNhcHAiLCJtZXRhZGF0YSI6eyJwaG9uZSI6IjU1MTEz
+OTAwMTM5MSIsIm1lc3NhZ2UiOiJPbCVDMyVBMSUyQytlc3RvdStjb20rdW1h
+K2QlQzMlQkF2aWRhK2UrcXVlcm8rZmFsYXIrY29tK3VtK2VzcGVjaWFsaXN0
+YSJ9fQ==
+" novalidate="true">
+    <input type="hidden" name="token_rdstation" value="43aa526bc97e4358abb6f3711cadf1b2">
+    <input type="hidden" name="conversion_identifier" value="whatsapp-site">
+    <input type="hidden" name="internal_source" value="12">
+    <input type="hidden" name="c_utmz" value="">
+    <input type="hidden" name="traffic_source" value="">
+    <input type="hidden" name="client_id" value="">
+    <input type="hidden" name="_doe" value="">
+    <input type="hidden" name="privacy_data[browser]" id="privacy_data_browser">
+
+    <div class="bricks-form__fieldset" data-progressive-profiling="" data-multi-step="false">
+  
+
+<div class="bricks-form__field " data-step="1">
+  <label for="rd-text_field-lj385toj" class="bricks-form__label">
+    Nome*
+  </label>
+  <input id="rd-text_field-lj385toj" class="bricks-form__input required js-text js-field-name" name="name" type="text" data-use-type="STRING" placeholder="Nome *" required="required" data-listener-added_c9cf8683="true">
+</div>
+
+
+<div class="bricks-form__field " data-step="1">
+  <label for="rd-email_field-lj385tok" class="bricks-form__label">
+    Email*
+  </label>
+  <input id="rd-email_field-lj385tok" class="bricks-form__input required js-email js-field-email" name="email" type="email" data-use-type="STRING" data-always-visible="true" data-input-mask="" placeholder="Email *" required="required" data-listener-added_c9cf8683="true">
+</div>
+
+
+<div class="bricks-form__field with-select-flags " data-step="1">
+  <label for="rd-phone_field-lj385tol" class="bricks-form__label">
+    Celular*
+  </label>
+  <div class="phone-input-group">
+    
+      <div class="form-control phone-country" data-type="countries"><div class="choices rd-choices" data-type="select-one" role="combobox" tabindex="0" aria-autocomplete="list" aria-haspopup="true" aria-expanded="false" dir="ltr" aria-label="Escolha seu país">
+      <div class="choices__inner rd-choices__inner"><select class="rd-choices__input is-hidden" tabindex="-1" aria-hidden="true" data-choice="active"><option value="BR" selected="">Brasil (+55)</option></select><div class="choices__list rd-choices__list rd-choices__list--single"><div data-item="" data-id="2" data-value="BR" class="choices__item rd-choices__item" aria-selected="true">
+              <img class="flag" width="26" src="https://dk9suync0k2va.cloudfront.net/js/rd/stable/flags/4x3/br.svg?t=1560538149">
+            </div></div></div><div class="choices__list rd-choices__list choices__list--dropdown rd-choices__list--dropdown" aria-expanded="false"><input type="text" class="rd-choices__input rd-choices__input--cloned" autocomplete="off" autocapitalize="off" spellcheck="false" role="textbox" aria-autocomplete="list" placeholder="">
+      <div class="choices__list rd-choices__list" dir="ltr" role="listbox"><div data-choice="" data-id="1" data-value="AF" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Afeganistão (+93)
+            </div><div data-choice="" data-id="2" data-value="AL" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Albânia (+355)
+            </div><div data-choice="" data-id="3" data-value="DE" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Alemanha (+49)
+            </div><div data-choice="" data-id="4" data-value="AD" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Andorra (+376)
+            </div><div data-choice="" data-id="5" data-value="AO" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Angola (+244)
+            </div><div data-choice="" data-id="6" data-value="AI" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Anguilla (+1)
+            </div><div data-choice="" data-id="7" data-value="AG" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Antígua e Barbuda (+1)
+            </div><div data-choice="" data-id="8" data-value="AR" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Argentina (+54)
+            </div><div data-choice="" data-id="9" data-value="DZ" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Argélia (+213)
+            </div><div data-choice="" data-id="10" data-value="AM" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Armênia (+374)
+            </div><div data-choice="" data-id="11" data-value="AW" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Aruba (+297)
+            </div><div data-choice="" data-id="12" data-value="SA" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Arábia Saudita (+966)
+            </div><div data-choice="" data-id="13" data-value="AU" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Austrália (+61)
+            </div><div data-choice="" data-id="14" data-value="AZ" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Azerbaijão (+994)
+            </div><div data-choice="" data-id="15" data-value="BS" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Bahamas (+1)
+            </div><div data-choice="" data-id="16" data-value="BH" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Bahrain (+973)
+            </div><div data-choice="" data-id="17" data-value="BD" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Bangladesh (+880)
+            </div><div data-choice="" data-id="18" data-value="BB" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Barbados (+1)
+            </div><div data-choice="" data-id="19" data-value="BY" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Belarus (+375)
+            </div><div data-choice="" data-id="20" data-value="BZ" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Belize (+501)
+            </div><div data-choice="" data-id="21" data-value="BJ" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Benin (+229)
+            </div><div data-choice="" data-id="22" data-value="BM" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Bermudas (+1)
+            </div><div data-choice="" data-id="23" data-value="BO" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Bolívia (+591)
+            </div><div data-choice="" data-id="24" data-value="BW" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Botswana (+267)
+            </div><div data-choice="" data-id="25" data-value="BR" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Brasil (+55)
+            </div><div data-choice="" data-id="26" data-value="BN" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Brunei (+673)
+            </div><div data-choice="" data-id="27" data-value="BG" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Bulgária (+359)
+            </div><div data-choice="" data-id="28" data-value="BF" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Burkina Faso (+226)
+            </div><div data-choice="" data-id="29" data-value="BI" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Burundi (+257)
+            </div><div data-choice="" data-id="30" data-value="BT" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Butão (+975)
+            </div><div data-choice="" data-id="31" data-value="BE" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Bélgica (+32)
+            </div><div data-choice="" data-id="32" data-value="BA" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Bósnia e Herzegovina (+387)
+            </div><div data-choice="" data-id="33" data-value="CV" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Cabo Verde (+238)
+            </div><div data-choice="" data-id="34" data-value="CM" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Camarões (+237)
+            </div><div data-choice="" data-id="35" data-value="KH" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Camboja (+855)
+            </div><div data-choice="" data-id="36" data-value="CA" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Canadá (+1)
+            </div><div data-choice="" data-id="37" data-value="BQ" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Caribe Neerlandês (+599)
+            </div><div data-choice="" data-id="38" data-value="QA" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Catar (+974)
+            </div><div data-choice="" data-id="39" data-value="KZ" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Cazaquistão (+7)
+            </div><div data-choice="" data-id="40" data-value="TD" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Chade (+235)
+            </div><div data-choice="" data-id="41" data-value="CL" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Chile (+56)
+            </div><div data-choice="" data-id="42" data-value="CN" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              China (+86)
+            </div><div data-choice="" data-id="43" data-value="CY" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Chipre (+357)
+            </div><div data-choice="" data-id="44" data-value="SG" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Cingapura (+65)
+            </div><div data-choice="" data-id="45" data-value="CO" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Colômbia (+57)
+            </div><div data-choice="" data-id="46" data-value="KP" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Coreia do Norte (+850)
+            </div><div data-choice="" data-id="47" data-value="KR" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Coreia do Sul (+82)
+            </div><div data-choice="" data-id="48" data-value="CI" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Costa do Marfim (+225)
+            </div><div data-choice="" data-id="49" data-value="CR" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Costa Rica (+506)
+            </div><div data-choice="" data-id="50" data-value="HR" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Croácia (+385)
+            </div><div data-choice="" data-id="51" data-value="CU" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Cuba (+53)
+            </div><div data-choice="" data-id="52" data-value="CW" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Curaçao (+599)
+            </div><div data-choice="" data-id="53" data-value="DK" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Dinamarca (+45)
+            </div><div data-choice="" data-id="54" data-value="DJ" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Djibouti (+253)
+            </div><div data-choice="" data-id="55" data-value="DM" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Dominica (+1)
+            </div><div data-choice="" data-id="56" data-value="EG" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Egito (+20)
+            </div><div data-choice="" data-id="57" data-value="SV" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              El Salvador (+503)
+            </div><div data-choice="" data-id="58" data-value="AE" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Emirados Árabes Unidos (+971)
+            </div><div data-choice="" data-id="59" data-value="EC" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Equador (+593)
+            </div><div data-choice="" data-id="60" data-value="SI" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Eslovenia (+386)
+            </div><div data-choice="" data-id="61" data-value="SK" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Eslováquia (+421)
+            </div><div data-choice="" data-id="62" data-value="ES" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Espanha (+34)
+            </div><div data-choice="" data-id="63" data-value="SZ" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Essuatíni (Suazilândia) (+268)
+            </div><div data-choice="" data-id="64" data-value="FM" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Estados Federados da Micronésia (+691)
+            </div><div data-choice="" data-id="65" data-value="US" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Estados Unidos (+1)
+            </div><div data-choice="" data-id="66" data-value="EE" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Estônia (+372)
+            </div><div data-choice="" data-id="67" data-value="ET" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Etiópia (+251)
+            </div><div data-choice="" data-id="68" data-value="FJ" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Fiji (+679)
+            </div><div data-choice="" data-id="69" data-value="PH" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Filipinas (+63)
+            </div><div data-choice="" data-id="70" data-value="FI" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Finlândia (+358)
+            </div><div data-choice="" data-id="71" data-value="FR" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              França (+33)
+            </div><div data-choice="" data-id="72" data-value="GA" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Gabão (+241)
+            </div><div data-choice="" data-id="73" data-value="GH" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Gana (+233)
+            </div><div data-choice="" data-id="74" data-value="GE" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Georgia (+995)
+            </div><div data-choice="" data-id="75" data-value="GI" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Gibraltar (+350)
+            </div><div data-choice="" data-id="76" data-value="GD" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Granada (+1)
+            </div><div data-choice="" data-id="77" data-value="GL" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Groenlândia (+299)
+            </div><div data-choice="" data-id="78" data-value="GR" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Grécia (+30)
+            </div><div data-choice="" data-id="79" data-value="GP" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Guadalupe (+590)
+            </div><div data-choice="" data-id="80" data-value="GU" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Guam (+1)
+            </div><div data-choice="" data-id="81" data-value="GT" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Guatemala (+502)
+            </div><div data-choice="" data-id="82" data-value="GG" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Guernsey (+44)
+            </div><div data-choice="" data-id="83" data-value="GY" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Guiana (+592)
+            </div><div data-choice="" data-id="84" data-value="GF" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Guiana Francesa (+594)
+            </div><div data-choice="" data-id="85" data-value="GN" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Guiné (+224)
+            </div><div data-choice="" data-id="86" data-value="GW" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Guiné-Bissau (+245)
+            </div><div data-choice="" data-id="87" data-value="GM" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Gâmbia (+220)
+            </div><div data-choice="" data-id="88" data-value="HT" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Haiti (+509)
+            </div><div data-choice="" data-id="89" data-value="HN" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Honduras (+504)
+            </div><div data-choice="" data-id="90" data-value="HK" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Hong Kong (+852)
+            </div><div data-choice="" data-id="91" data-value="HU" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Hungria (+36)
+            </div><div data-choice="" data-id="92" data-value="IM" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Ilha de Man (+44)
+            </div><div data-choice="" data-id="93" data-value="NF" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Ilha Norfolk (+672)
+            </div><div data-choice="" data-id="94" data-value="KY" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Ilhas Cayman (+1)
+            </div><div data-choice="" data-id="95" data-value="CC" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Ilhas Cocos (Keeling) (+61)
+            </div><div data-choice="" data-id="96" data-value="CK" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Ilhas Cook (+682)
+            </div><div data-choice="" data-id="97" data-value="SB" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Ilhas Salomão (+677)
+            </div><div data-choice="" data-id="98" data-value="TC" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Ilhas Turks e Caicos (+1)
+            </div><div data-choice="" data-id="99" data-value="VI" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Ilhas Virgens Americanas (+1)
+            </div><div data-choice="" data-id="100" data-value="VG" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Ilhas Virgens Britânicas (+1)
+            </div><div data-choice="" data-id="101" data-value="AX" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Ilhas Åland (+358)
+            </div><div data-choice="" data-id="102" data-value="ID" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Indonésia (+62)
+            </div><div data-choice="" data-id="103" data-value="IQ" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Iraque (+964)
+            </div><div data-choice="" data-id="104" data-value="IE" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Irlanda (+353)
+            </div><div data-choice="" data-id="105" data-value="IR" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Irã (+98)
+            </div><div data-choice="" data-id="106" data-value="IS" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Islândia (+354)
+            </div><div data-choice="" data-id="107" data-value="IL" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Israel (+972)
+            </div><div data-choice="" data-id="108" data-value="IT" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Itália (+39)
+            </div><div data-choice="" data-id="109" data-value="YE" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Iêmen (+967)
+            </div><div data-choice="" data-id="110" data-value="JM" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Jamaica (+1)
+            </div><div data-choice="" data-id="111" data-value="JP" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Japão (+81)
+            </div><div data-choice="" data-id="112" data-value="JE" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Jersey (+44)
+            </div><div data-choice="" data-id="113" data-value="JO" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Jordânia (+962)
+            </div><div data-choice="" data-id="114" data-value="KI" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Kiribati (+686)
+            </div><div data-choice="" data-id="115" data-value="KW" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Kuweit (+965)
+            </div><div data-choice="" data-id="116" data-value="LA" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Laos (+856)
+            </div><div data-choice="" data-id="117" data-value="LS" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Lesoto (+266)
+            </div><div data-choice="" data-id="118" data-value="LV" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Letônia (+371)
+            </div><div data-choice="" data-id="119" data-value="LR" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Libéria (+231)
+            </div><div data-choice="" data-id="120" data-value="LI" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Liechtenstein (+423)
+            </div><div data-choice="" data-id="121" data-value="LT" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Lituânia (+370)
+            </div><div data-choice="" data-id="122" data-value="LU" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Luxemburgo (+352)
+            </div><div data-choice="" data-id="123" data-value="LB" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Líbano (+961)
+            </div><div data-choice="" data-id="124" data-value="LY" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Líbia (+218)
+            </div><div data-choice="" data-id="125" data-value="MO" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Macau (+853)
+            </div><div data-choice="" data-id="126" data-value="MK" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Macedónia (+389)
+            </div><div data-choice="" data-id="127" data-value="MG" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Madagáscar (+261)
+            </div><div data-choice="" data-id="128" data-value="MW" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Malavi (+265)
+            </div><div data-choice="" data-id="129" data-value="MV" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Maldivas (+960)
+            </div><div data-choice="" data-id="130" data-value="ML" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Mali (+223)
+            </div><div data-choice="" data-id="131" data-value="MT" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Malta (+356)
+            </div><div data-choice="" data-id="132" data-value="MY" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Malásia (+60)
+            </div><div data-choice="" data-id="133" data-value="MA" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Marrocos (+212)
+            </div><div data-choice="" data-id="134" data-value="MU" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Mauritius (+230)
+            </div><div data-choice="" data-id="135" data-value="MR" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Mauritânia (+222)
+            </div><div data-choice="" data-id="136" data-value="MD" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Moldova (+373)
+            </div><div data-choice="" data-id="137" data-value="MN" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Mongólia (+976)
+            </div><div data-choice="" data-id="138" data-value="ME" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Montenegro (+382)
+            </div><div data-choice="" data-id="139" data-value="MS" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Montserrat (+1)
+            </div><div data-choice="" data-id="140" data-value="MZ" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Moçambique (+258)
+            </div><div data-choice="" data-id="141" data-value="MM" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Myanmar (+95)
+            </div><div data-choice="" data-id="142" data-value="MX" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              México (+52)
+            </div><div data-choice="" data-id="143" data-value="MC" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Mônaco (+377)
+            </div><div data-choice="" data-id="144" data-value="NA" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Namíbia (+264)
+            </div><div data-choice="" data-id="145" data-value="NR" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Nauru (+674)
+            </div><div data-choice="" data-id="146" data-value="NP" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Nepal (+977)
+            </div><div data-choice="" data-id="147" data-value="NI" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Nicarágua (+505)
+            </div><div data-choice="" data-id="148" data-value="NG" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Nigéria (+234)
+            </div><div data-choice="" data-id="149" data-value="NU" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Niue (+683)
+            </div><div data-choice="" data-id="150" data-value="NO" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Noruega (+47)
+            </div><div data-choice="" data-id="151" data-value="NC" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Nova Caledônia (+687)
+            </div><div data-choice="" data-id="152" data-value="NZ" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Nova Zelândia (+64)
+            </div><div data-choice="" data-id="153" data-value="NE" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Níger (+227)
+            </div><div data-choice="" data-id="154" data-value="OM" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Omã (+968)
+            </div><div data-choice="" data-id="155" data-value="PW" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Palau (+680)
+            </div><div data-choice="" data-id="156" data-value="PS" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Palestina (+970)
+            </div><div data-choice="" data-id="157" data-value="PA" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Panamá (+507)
+            </div><div data-choice="" data-id="158" data-value="PG" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Papua Nova Guiné (+675)
+            </div><div data-choice="" data-id="159" data-value="PK" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Paquistão (+92)
+            </div><div data-choice="" data-id="160" data-value="PY" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Paraguai (+595)
+            </div><div data-choice="" data-id="161" data-value="NL" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Países Baixos (+31)
+            </div><div data-choice="" data-id="162" data-value="PE" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Peru (+51)
+            </div><div data-choice="" data-id="163" data-value="PF" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Polinésia Francesa (+689)
+            </div><div data-choice="" data-id="164" data-value="PL" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Polônia (+48)
+            </div><div data-choice="" data-id="165" data-value="PR" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Porto Rico (+1)
+            </div><div data-choice="" data-id="166" data-value="PT" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Portugal (+351)
+            </div><div data-choice="" data-id="167" data-value="KG" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Quirguistão (+996)
+            </div><div data-choice="" data-id="168" data-value="KE" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Quênia (+254)
+            </div><div data-choice="" data-id="169" data-value="GB" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Reino Unido (+44)
+            </div><div data-choice="" data-id="170" data-value="CF" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              República Centro-Africana (+236)
+            </div><div data-choice="" data-id="171" data-value="CZ" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              República Checa (+420)
+            </div><div data-choice="" data-id="172" data-value="CD" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              República Democrática do Congo (+243)
+            </div><div data-choice="" data-id="173" data-value="CG" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              República do Congo (+242)
+            </div><div data-choice="" data-id="174" data-value="DO" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              República Dominicana (+1)
+            </div><div data-choice="" data-id="175" data-value="RE" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Reunião (+262)
+            </div><div data-choice="" data-id="176" data-value="RO" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Romênia (+40)
+            </div><div data-choice="" data-id="177" data-value="RW" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Ruanda (+250)
+            </div><div data-choice="" data-id="178" data-value="RU" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Rússia (+7)
+            </div><div data-choice="" data-id="179" data-value="WS" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Samoa (+685)
+            </div><div data-choice="" data-id="180" data-value="AS" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Samoa Americana (+1)
+            </div><div data-choice="" data-id="181" data-value="SM" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              San Marino (+378)
+            </div><div data-choice="" data-id="182" data-value="SH" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Santa Helena, Ascensão e Tristão da Cunha (+290)
+            </div><div data-choice="" data-id="183" data-value="LC" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Santa Lúcia (+1)
+            </div><div data-choice="" data-id="184" data-value="SN" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Senegal (+221)
+            </div><div data-choice="" data-id="185" data-value="SL" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Serra Leoa (+232)
+            </div><div data-choice="" data-id="186" data-value="SC" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Seychelles (+248)
+            </div><div data-choice="" data-id="187" data-value="SX" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Sint Maarten (+1)
+            </div><div data-choice="" data-id="188" data-value="SO" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Somália (+252)
+            </div><div data-choice="" data-id="189" data-value="LK" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Sri Lanka (+94)
+            </div><div data-choice="" data-id="190" data-value="SD" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Sudão (+249)
+            </div><div data-choice="" data-id="191" data-value="SS" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Sudão do Sul (+211)
+            </div><div data-choice="" data-id="192" data-value="SR" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Suriname (+597)
+            </div><div data-choice="" data-id="193" data-value="SE" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Suécia (+46)
+            </div><div data-choice="" data-id="194" data-value="CH" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Suíça (+41)
+            </div><div data-choice="" data-id="195" data-value="KN" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              São Cristóvão e Nevis (+1)
+            </div><div data-choice="" data-id="196" data-value="PM" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              São Pedro e Miquelão (+508)
+            </div><div data-choice="" data-id="197" data-value="ST" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              São Tomé e Príncipe (+239)
+            </div><div data-choice="" data-id="198" data-value="VC" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              São Vicente e Granadinas (+1)
+            </div><div data-choice="" data-id="199" data-value="RS" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Sérvia (+381)
+            </div><div data-choice="" data-id="200" data-value="SY" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Síria (+963)
+            </div><div data-choice="" data-id="201" data-value="TH" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Tailândia (+66)
+            </div><div data-choice="" data-id="202" data-value="TW" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Taiwan (+886)
+            </div><div data-choice="" data-id="203" data-value="TJ" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Tajiquistão (+992)
+            </div><div data-choice="" data-id="204" data-value="TZ" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Tanzânia (+255)
+            </div><div data-choice="" data-id="205" data-value="IO" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Território Britânico do Oceano Índico (+246)
+            </div><div data-choice="" data-id="206" data-value="TL" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Timor-Leste (+670)
+            </div><div data-choice="" data-id="207" data-value="TG" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Togo (+228)
+            </div><div data-choice="" data-id="208" data-value="TO" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Tonga (+676)
+            </div><div data-choice="" data-id="209" data-value="TK" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Toquelau (+690)
+            </div><div data-choice="" data-id="210" data-value="TT" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Trinidad e Tobago (+1)
+            </div><div data-choice="" data-id="211" data-value="TN" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Tunísia (+216)
+            </div><div data-choice="" data-id="212" data-value="TM" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Turquemenistão (+993)
+            </div><div data-choice="" data-id="213" data-value="TR" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Turquia (+90)
+            </div><div data-choice="" data-id="214" data-value="TV" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Tuvalu (+688)
+            </div><div data-choice="" data-id="215" data-value="UA" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Ucrânia (+380)
+            </div><div data-choice="" data-id="216" data-value="UG" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Uganda (+256)
+            </div><div data-choice="" data-id="217" data-value="UY" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Uruguai (+598)
+            </div><div data-choice="" data-id="218" data-value="UZ" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Uzbequistão (+998)
+            </div><div data-choice="" data-id="219" data-value="VU" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Vanuatu (+678)
+            </div><div data-choice="" data-id="220" data-value="VA" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Vaticano (+39)
+            </div><div data-choice="" data-id="221" data-value="VE" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Venezuela (+58)
+            </div><div data-choice="" data-id="222" data-value="VN" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Vietnã (+84)
+            </div><div data-choice="" data-id="223" data-value="WF" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Wallis e Futuna (+681)
+            </div><div data-choice="" data-id="224" data-value="ZW" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Zimbábue (+263)
+            </div><div data-choice="" data-id="225" data-value="ZM" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Zâmbia (+260)
+            </div><div data-choice="" data-id="226" data-value="ZA" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              África do Sul (+27)
+            </div><div data-choice="" data-id="227" data-value="AT" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Áustria (+43)
+            </div><div data-choice="" data-id="228" data-value="IN" class="choices__item rd-choices__item choices__item--choice" data-select-text="Pressione para selecionar">
+              Índia (+91)
+            </div></div></div></div></div>
+      <div class="country-field" value="BR"></div>
+    
+
+    <input id="rd-phone_field-lj385tol" class="bricks-form__input required phone js-phone js-field-mobile_phone" name="mobile_phone" data-input-mask="INTERNATIONAL_MASK" data-use-type="STRING" type="tel" placeholder="Celular *" required="required" data-country="BR" data-last-country-code="55">
+  </div>
+</div>
+
+
+<div class="bricks-form__field " data-step="1">
+  <label for="rd-text_field-lj385tom" class="bricks-form__label">
+    Empresa*
+  </label>
+  <input id="rd-text_field-lj385tom" class="bricks-form__input required js-text js-field-company" name="company" type="text" data-use-type="" placeholder="Empresa *" required="required" data-listener-added_c9cf8683="true">
+</div>
+
+</div>
+
+
+<style type="text/css" rel="stylesheet">
+  
+
+    a#rd-button-l0l1yzld {
+      display: flex;
+      flex-direction: column;
+    }
+
+    #rd-button-l0l1yzld.bricks--component {
+      -ms-flex-align: center;
+      -ms-flex-direction: column;
+      -ms-flex-pack: center;
+      align-self: flex-end;
+      background-color: rgba(11,97,86,1);
+      border-bottom-style: none;
+      border-color: #000000;
+      border-left-style: none;
+      border-radius: 6px;
+      border-right-style: none;
+      border-top-style: none;
+      border-width: 0px;
+      
+          box-shadow: 0px
+                      0px
+                      0px
+                      0px
+                      #cccccc;
+        ;
+      color: #FFFFFF;
+      cursor: pointer;
+      font-family: Raleway, sans-serif;
+      font-size: 16px;
+      font-style: normal;
+      font-weight: normal;
+      height: 40px;
+      justify-content: center;
+      line-height: 1.42857;
+      margin-bottom: 0px;
+      margin-top: 0px;
+      max-width: 199px;
+      text-align: center;
+      text-decoration: none;
+      width: 100%;
+      padding-right: 10px;
+      padding-left: 10px;
+    }
+    @media screen and (max-width: 767px) {
+      #rd-button-l0l1yzld.bricks--component {
+        height: auto;
+        padding-top: 0.66em;
+        padding-bottom: 0.66em;
+        align-self: center;
+      }
+    }
+  
+</style>
+
+
+  <div class="bricks-form__submit">
+    <button class="bricks--component bricks--component-button rdstation-popup-js-submit-button rd-button" id="rd-button-l0l1yzld">
+      Iniciar conversa ➞ 
+    </button>
+  </div>
+
+
+  </form>
+</div>
+
+  </div>
+</div>
+
+</div>
+
+</section>)
+
+
+/////////////////

@@ -1,0 +1,32 @@
+   <!DOCTYPE html>
+<html lang="pt-BR"> <!-- Alterado para pt-BR -->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pinbot Atendimento</title> <!-- Título alterado -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <div class="bg" style="background-image: url('{{ url_for('static', filename='res/hd2.jpg') }}');"></div>
+  <div class="chat">
+    <div class="chat-title">
+      <div class="avatar">
+        <!-- Usar um avatar genérico para o bot ou o seu específico -->
+        <img src="{{ url_for('static', filename='res/avatar.jpg') }}" alt="Pinbot Avatar">
+      </div>
+      <h1>Pinbot</h1> <!-- Nome do Bot -->
+      <h2>Online</h2>
+    </div>
+    <div class="messages">
+      <div class="messages-content" id="messages-content">
+        <!-- As mensagens serão inseridas aqui pelo JavaScript -->
+      </div>
+    </div>
+    <div class="message-box">
+      <textarea id="message-input" class="message-input" placeholder="Digite sua opção ou mensagem..."></textarea>
+      <button id="message-submit" class="message-submit">Enviar</button>
+    </div>
+  </div>
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
